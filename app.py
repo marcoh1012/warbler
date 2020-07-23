@@ -259,6 +259,45 @@ def delete_user():
 
     return redirect("/signup")
 
+####Add Like
+@app.route('/users/add_like/<int:id>', methods=['POST'])
+def add_like(id):
+    """ Add like to message """
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    message = Message.query.get(id)
+    if message.user_id != g.user.id:
+        if message in g.user.likes:
+            g.user.likes.remove(message)
+            db.session.commit()
+            flash('unliked','success')
+            return redirect('/')
+        flash('liked','success')
+        g.user.likes.append(message)
+        db.session.commit()
+        return redirect('/')
+    flash('Cannnot like your own warble')
+    return redirect('/')
+
+@app.route('/users/<int:id>/likes')
+def get_likes(id):
+    """ show all liked messages """
+    
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = User.query.get_or_404(id)
+    likes = [msg.id for msg in user.likes]
+    messages = (Message
+                .query
+                .filter(Message.id.in_(likes))
+                .order_by(Message.timestamp.desc())
+                .limit(100)
+                .all())
+    return render_template('users/likes.html',messages=messages,likes=likes)
 
 ##############################################################################
 # Messages routes:
@@ -328,8 +367,9 @@ def homepage():
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
-
-        return render_template('home.html', messages=messages)
+                
+        likes = [msg.id for msg in g.user.likes]
+        return render_template('home.html', messages=messages, likes=likes)
 
     else:
         return render_template('home-anon.html')
