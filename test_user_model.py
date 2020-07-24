@@ -35,11 +35,27 @@ class UserModelTestCase(TestCase):
     def setUp(self):
         """Create test client, add sample data."""
 
-        User.query.delete()
-        Message.query.delete()
-        Follows.query.delete()
+        # User.query.delete()
+        # Message.query.delete()
+        # Follows.query.delete()
+
+        db.drop_all()
+        db.create_all()
+
+        u1 = User.signup("test1","test1@test.com","pass",None)
+        u2 = User.signup("test2","test2@test.com","pass",None)
+        db.session.commit()
+
+        self.u1=u1
+        self.u1_id = u1.id
+
+        self.u2=u2
+        self.u2_id = u2.id
 
         self.client = app.test_client()
+
+    def tearDown(self):
+        db.session.rollback()
 
     def test_user_model(self):
         """Does basic model work?"""
@@ -56,3 +72,40 @@ class UserModelTestCase(TestCase):
         # User should have no messages & no followers
         self.assertEqual(len(u.messages), 0)
         self.assertEqual(len(u.followers), 0)
+
+    # def test_repr(self):
+    #     """ Test repr method """
+
+    #     repr = f"<User #None: testuser, test@test.com>"
+    #     self.assertEqual(repr, u2)
+
+    def test_user_follows(self):
+        """ test user follows another user """
+
+        self.u1.following.append(self.u2)
+        db.session.commit()
+
+        self.assertEqual(len(self.u1.following),1)
+        self.assertEqual(len(self.u2.following),0)
+
+        self.assertEqual(self.u1.following[0].id,self.u2.id)
+        self.assertEqual(self.u2.followers[0].id,self.u1.id)
+
+    def test_is_following(self):
+        """ Test is following method """
+
+        self.u1.following.append(self.u2)
+        db.session.commit()
+
+        self.assertTrue(self.u1.is_following(self.u2))
+        self.assertFalse(self.u2.is_following(self.u1))
+
+    def test_is_followed_by(self):
+        """ Test is followed by method """
+
+        self.u1.following.append(self.u2)
+        db.session.commit()
+
+        self.assertTrue(self.u2.is_followed_by(self.u1))
+        self.assertFalse(self.u1.is_followed_by(self.u2))
+        
