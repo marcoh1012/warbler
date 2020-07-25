@@ -7,6 +7,7 @@
 
 import os
 from unittest import TestCase
+from sqlalchemy import exc
 
 from models import db, User, Message, Follows
 
@@ -109,3 +110,44 @@ class UserModelTestCase(TestCase):
         self.assertTrue(self.u2.is_followed_by(self.u1))
         self.assertFalse(self.u1.is_followed_by(self.u2))
         
+
+    def test_signup(self):
+        "test user can sign up"
+
+        new_user = User.signup('testuser',"testuser@gmail.com","password",None)
+        db.session.commit()
+
+        user = User.query.get(new_user.id)
+        self.assertIsNotNone(user)
+        self.assertEqual(user.username, "testuser")
+        self.assertEqual(user.email,"testuser@gmail.com")
+        self.assertTrue(user.password.startswith('$2b$'))
+
+    def test_signup_fail(self):
+        """ test user wrong input """
+
+        wrong_username = User.signup(None,"testuser@gmail.com","password",None)
+        with self.assertRaises(exc.IntegrityError) as context: 
+            db.session.commit()
+        db.session.rollback()
+
+        wrong_email = User.signup("testuser",None,"password",None)
+        with self.assertRaises(exc.IntegrityError) as context: 
+            db.session.commit()
+
+        with self.assertRaises(ValueError) as context: 
+            wrong_password = User.signup("testuser","testuser@gmail.com", None,None)
+
+
+    def test_authenticate(self):
+        """ test authentication method """
+
+        user = User.authenticate(self.u1.username, 'pass')
+        self.assertIsNotNone(user)
+        self.assertEqual(user.id,self.u1.id)
+
+        wrong_username = User.authenticate('wrongname', 'pass')
+        self.assertFalse(wrong_username)
+
+        wrong_password = User.authenticate(self.u1.username, 'wrongpass')
+        self.assertFalse(wrong_password)
